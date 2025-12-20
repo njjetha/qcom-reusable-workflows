@@ -31,7 +31,7 @@ on:
 jobs:
   semgrep-scan:
     if: ${{ inputs.semgrep }}
-    uses: ./.github/workflows/qcom-semgrep-scan-reusable-workflow.yml
+    uses: ./.github/workflows/qcom-security-scan-reusable-workflow.yml
     with:
       semgrep-cli-options: ${{ inputs.semgrep-cli-options }}
     permissions:
