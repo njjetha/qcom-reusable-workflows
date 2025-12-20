@@ -1,4 +1,4 @@
-name: Qualcomm Code Scanning Reusable Workflow
+name: Semgrep Scan Reusable Workflow
 on:
   workflow_call:
     inputs:
@@ -13,9 +13,9 @@ permissions:
   security-events: write
   
 jobs:
-  semgrep-static-analysis:
+  run-semgrep-scan:
     if: ${{ (github.event_name == 'push' || github.event_name == 'pull_request') && github.actor != 'dependabot[bot]' }}
-    name: semgrep/ci
+    name: Run Scan
     runs-on: ubuntu-latest
 
     env:
@@ -38,11 +38,11 @@ jobs:
       - name: Configure git
         run: git config --global --add safe.directory "$(pwd)"
       
-      - name: Run Semgrep
+      - name: Run Semgrep Scan
         run: |
           semgrep scan --sarif --output semgrep.sarif $SEMGREP_CLI_OPTIONS
       
-      - name: Upload SARIF
+      - name: Upload to Security Tab
         uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:

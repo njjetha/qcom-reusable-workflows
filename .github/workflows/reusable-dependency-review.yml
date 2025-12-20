@@ -1,0 +1,31 @@
+name: Dependency Review Reusable Workflow
+on:
+  workflow_call:  
+
+permissions:
+  contents: read
+  
+jobs:
+  run-dependency-review:
+    if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
+    name: Run Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Set base ref and head ref
+        id: setrefs
+        run: |
+          if [ "${{github.event_name}}" == "push" ]; then
+            echo "base_ref=${{ github.event.before }}" >> $GITHUB_OUTPUT
+            echo "head_ref=${{ github.sha }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "base_ref=${{ github.event.pull_request.base.sha }}" >> $GITHUB_OUTPUT
+            echo "head_ref=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
+          fi
+      - name: Run Dependency Review Action
+        uses: actions/dependency-review-action@v4
+        with:
+          base-ref: ${{ steps.setrefs.outputs.base_ref }}
+          head-ref: ${{ steps.setrefs.outputs.head_ref }}
+          fail-on-severity: high

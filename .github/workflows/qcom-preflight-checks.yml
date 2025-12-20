@@ -1,49 +1,20 @@
-name: Qualcomm Preflight Checks
+name: QC Preflight
+
 on:
-  workflow_call:
-    inputs:
-      # Allow repos to customize which checks to run
-      repolinter:
-        required: false
-        type: boolean
-        default: true
-      semgrep:
-        required: false
-        type: boolean
-        default: true
-      semgrep-cli-options:
-        required: false
-        type: string
-        default: '--config auto'
-      copyright-license-detector:
-        required: false
-        type: boolean
-        default: true
-      pr-check-emails:
-        required: false
-        type: boolean
-        default: true
-      dependency-review:
-        required: false
-        type: boolean
-        default: true
+  pull_request:
+  push:
+    branches: [main]
 
 jobs:
-  semgrep-scan:
-    if: ${{ inputs.semgrep }}
-    uses: ./.github/workflows/qcom-security-scan-reusable-workflow.yml
+  preflight:
+    name: Run Checks
+    uses: ./.github/workflows/reusable-qcom-preflight-checks-orchestrator.yml
     with:
-      semgrep-cli-options: ${{ inputs.semgrep-cli-options }}
+      enable-semgrep-scan: true
+      enable-dependency-review: true
+      enable-repolinter-check: true
+      enable-copyright-license-check: true
+      enable-commit-email-check: true
     permissions:
       contents: read
       security-events: write
-
-  preflight-checks:
-    uses: ./.github/workflows/qcom-preflight-checks-reusable-workflow.yml
-    with:
-      repolinter: ${{ inputs.repolinter }}
-      copyright-license-detector: ${{ inputs.copyright-license-detector }}
-      pr-check-emails: ${{ inputs.pr-check-emails }}
-      dependency-review: ${{ inputs.dependency-review }}
-    permissions:
-      contents: read
