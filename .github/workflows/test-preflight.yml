@@ -7,10 +7,13 @@ on:
 
 jobs:
   run-preflight-checks:
-    uses: ./.github/workflows/qcom-preflight-checks-reusable-workflow.yml
+    uses: ./.github/workflows/qcom-preflight-checks.yml
     with:
       repolinter: true
       semgrep: true
       copyright-license-detector: true
       pr-check-emails: true
       dependency-review: true
+    permissions:
+      contents: read
+      security-events: write
