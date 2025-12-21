@@ -5,10 +5,40 @@ on:
 permissions:
   contents: read
   
+
 jobs:
+  detect-github-security-is-enabled:
+    name: Detect GitHub Security is Enabled
+    runs-on: ubuntu-latest
+    outputs:
+      dep_scan_enabled: ${{ steps.check.outputs.dep_scan_enabled }}
+    steps:
+      - name: Check security_and_analysis flags
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Query repo security settings
+          json="$(gh api \
+            repos/${{ github.repository }} \
+            --jq '.security_and_analysis')"
+
+          adv="$(echo "$json" | jq -r '.advanced_security.status // empty')"
+          graph="$(echo "$json" | jq -r '.dependency_graph.status // empty')"
+          alerts="$(echo "$json" | jq -r '.dependabot_alerts.status // empty')"
+
+          enabled=false
+          if [ "$adv" = "enabled" ] && [ "$graph" = "enabled" ] && [ "$alerts" = "enabled" ]; then
+            enabled=true
+          fi
+
+          echo "dep_scan_enabled=$enabled" >> "$GITHUB_OUTPUT"
+
   run-dependency-review:
-    if: ${{ github.event_name == 'push' || github.event_name == 'pull_request' }}
     name: Run Scan
+    needs: detect-github-security-is-enabled
+    if: ${{ needs.detect-github-security-is-enabled.outputs.dep_scan_enabled == 'true' && (github.event_name == 'push' || github.event_name == 'pull_request') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
