@@ -8,7 +8,7 @@ permissions:
 jobs:
   run-copyright-license-check:
     if: ${{ github.event_name == 'pull_request' && github.event.action != 'closed' }}
-    name: Run Check
+    name: Run Copyright License Check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout PR head

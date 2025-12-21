@@ -15,7 +15,7 @@ permissions:
 jobs:
   run-semgrep-scan:
     if: ${{ (github.event_name == 'push' || github.event_name == 'pull_request') && github.actor != 'dependabot[bot]' }}
-    name: Run Scan
+    name: Run Semgrep Scan
     runs-on: ubuntu-latest
 
     env:

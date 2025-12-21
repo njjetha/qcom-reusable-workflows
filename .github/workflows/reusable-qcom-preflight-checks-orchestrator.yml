@@ -3,7 +3,6 @@ name: Qualcomm Preflight Checks Orchestrator Reusable Workflow
 on:
   workflow_call:
     inputs:
-      # Allow repos to customize which checks to run
       enable-semgrep-scan:
         required: false
         type: boolean

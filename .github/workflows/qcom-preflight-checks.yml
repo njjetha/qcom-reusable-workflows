@@ -1,4 +1,4 @@
-name: QC Preflight
+name: QC Preflight Checks
 
 on:
   pull_request:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   preflight:
-    name: Run Checks
+    name: Run QC Preflight Checks
     uses: ./.github/workflows/reusable-qcom-preflight-checks-orchestrator.yml
     with:
       enable-semgrep-scan: true
