@@ -117,24 +117,63 @@ def list_repos(org, visibility="public"):
 
 def search_prt_in_repo(repo_full_name):
     """
-    Search for pull_request_target usage in .github/workflows/ of a repo.
-    Returns list of matching file paths, empty list if none found.
+    Directly fetch .github/workflows/ contents and scan each file
+    for pull_request_target. Falls back gracefully if not found.
+    Uses Contents API instead of Search API — works on all repos.
     """
-    time.sleep(SEARCH_DELAY)   # respect search rate limit
+    print(f"    Fetching workflow files from {repo_full_name} ...", end=" ", flush=True)
 
+    # Step 1 — List all files in .github/workflows/
     data = gh_get(
-        "https://api.github.com/search/code",
-        params={
-            "q": f"pull_request_target repo:{repo_full_name} path:.github/workflows",
-            "per_page": 10
-        }
+        f"https://api.github.com/repos/{repo_full_name}/contents/.github/workflows"
     )
 
     if not data:
+        print("⚪ No workflows dir")
         return []
 
-    return [item["path"] for item in data.get("items", [])]
+    # Step 2 — Filter only yaml files
+    workflow_files = [
+        f for f in data
+        if f["type"] == "file"
+        and (f["name"].endswith(".yml") or f["name"].endswith(".yaml"))
+    ]
 
+    if not workflow_files:
+        print("⚪ No workflow files")
+        return []
+
+    matched_files = []
+
+    # Step 3 — Fetch each file and scan its content
+    for wf in workflow_files:
+        file_path = wf["path"]
+        file_data = gh_get(
+            f"https://api.github.com/repos/{repo_full_name}/contents/{file_path}"
+        )
+
+        if not file_data:
+            continue
+
+        # Decode base64 content
+        import base64
+        try:
+            content = base64.b64decode(file_data["content"]).decode("utf-8")
+        except Exception:
+            continue
+
+        # Scan line by line — ignore commented lines
+        for line in content.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("#"):
+                continue
+            if "pull_request_target" in stripped:
+                matched_files.append(file_path)
+                break   # one match per file is enough
+
+        time.sleep(0.3)   # gentle on contents API
+
+    return matched_files
 
 # ══════════════════════════════════════════════════════════════════════════════
 # GITHUB CLI HELPERS
