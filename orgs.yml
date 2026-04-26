@@ -1,0 +1,4 @@
+organizations:
+  - name: qualcomm-linux-stg
+    visibility: public
+    security_team: qualcomm-linux-stg/test-team

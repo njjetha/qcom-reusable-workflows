@@ -1,0 +1,30 @@
+on:
+  schedule:
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+    inputs:
+      org_filter:
+        description: 'Scan specific org only (leave empty for all)'
+        required: false
+        default: ''
+      repo_filter:
+        description: 'Scan single repo only e.g. qualcomm-ai/my-repo (leave empty for all)'
+        required: false
+        default: ''
+
+jobs:
+  scan-all-orgs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      GH_TOKEN: ${{ secrets.ORG_ADMIN_PAT }}
+      ORG_FILTER: ${{ github.event.inputs.org_filter }}
+      REPO_FILTER: ${{ github.event.inputs.repo_filter }}
+      GOVERNANCE_REPO: njjetha/qcom-reusable-workflows
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: pip install pyyaml requests --break-system-packages
+      - name: Run scan
+        run: python3 scripts/scan.py
