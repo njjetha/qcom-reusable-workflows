@@ -45,6 +45,15 @@ on:
         type: string
         default: ''
         description: 'ARMOR checker options as JSON string.e.g., {"build-script":"ci/build.sh","runs-on":{"group":"<group>","labels":["<l1>","<l2>"]}}'
+      enable-zizmor-scan:
+        required: false
+        type: boolean
+        default: true
+      zizmor-config-path:
+        required: false
+        type: string
+        default: '.github/zizmor.yml'
+        description: 'Path to a repo-local zizmor config file; falls back to the central default if the file does not exist'
 
 jobs:
   semgrep-scan:
@@ -102,3 +111,13 @@ jobs:
       armor-checker-options: ${{ inputs.armor-checker-options }}
     permissions:
       contents: read
+
+  zizmor-scan:
+    if: ${{ inputs.enable-zizmor-scan }}
+    name: Zizmor Security Scan
+    uses: ./.github/workflows/reusable-zizmor-scan.yml
+    with:
+      config-path: ${{ inputs.zizmor-config-path }}
+    permissions:
+      contents: read
+      security-events: write

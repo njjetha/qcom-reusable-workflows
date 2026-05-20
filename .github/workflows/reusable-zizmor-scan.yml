@@ -1,0 +1,38 @@
+name: Zizmor Security Scan
+on:
+  workflow_call:
+    inputs:
+      config-path:
+        required: false
+        type: string
+        default: ".github/zizmor.yml"
+
+permissions:
+  contents: read
+  security-events: write   # needed to upload SARIF to Code Scanning
+
+jobs:
+  zizmor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      # If no repo-local config exists, download the central default from this repo
+      - name: Resolve config
+        id: config
+        run: |
+          if [ -f "${{ inputs.config-path }}" ]; then
+            echo "path=${{ inputs.config-path }}" >> $GITHUB_OUTPUT
+          else
+            curl -sSfL \
+              "https://raw.githubusercontent.com/qualcomm/qcom-reusable-workflows/main/zizmor-default-config.yml" \
+              -o zizmor-default-config.yml
+            echo "path=zizmor-default-config.yml" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run Zizmor
+        uses: zizmorcore/zizmor-action@5f14fd08f7cf1cb1609c1e344975f152c7ee938d
+        with:
+          config: ${{ steps.config.outputs.path }}
+          advanced-security: true   # uploads SARIF to GitHub Code Scanning
+          online-audits: true       # always run impostor-commit, known-vulnerable-actions, ref-confusion
