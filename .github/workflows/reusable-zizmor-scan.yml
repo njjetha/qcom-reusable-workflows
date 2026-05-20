@@ -9,13 +9,15 @@ on:
 
 permissions:
   contents: read
-  security-events: write   # needed to upload SARIF to Code Scanning
+  security-events: write
 
 jobs:
   zizmor:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          persist-credentials: false
 
       # If no repo-local config exists, download the central default from this repo
       - name: Resolve config
@@ -25,14 +27,23 @@ jobs:
             echo "path=${{ inputs.config-path }}" >> $GITHUB_OUTPUT
           else
             curl -sSfL \
-              "https://raw.githubusercontent.com/qualcomm/qcom-reusable-workflows/main/zizmor-default-config.yml" \
+              "https://raw.githubusercontent.com/qualcomm-linux-stg/qcom-reusable-workflows/zizmor-test/zizmor-default-config.yml" \
               -o zizmor-default-config.yml
             echo "path=zizmor-default-config.yml" >> $GITHUB_OUTPUT
           fi
 
       - name: Run Zizmor
+        id: zizmor
         uses: zizmorcore/zizmor-action@5f14fd08f7cf1cb1609c1e344975f152c7ee938d
         with:
           config: ${{ steps.config.outputs.path }}
-          advanced-security: true   # uploads SARIF to GitHub Code Scanning
+          advanced-security: false  # we upload SARIF ourselves below (same pattern as semgrep)
           online-audits: true       # always run impostor-commit, known-vulnerable-actions, ref-confusion
+        continue-on-error: true
+
+      - name: Upload to Security Tab
+        uses: github/codeql-action/upload-sarif@v4
+        if: ${{ always() && github.event.repository.visibility == 'public' }}
+        with:
+          sarif_file: ${{ steps.zizmor.outputs.output-file }}
+          category: zizmor

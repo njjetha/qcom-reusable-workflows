@@ -2,30 +2,27 @@ rules:
   # Dangerous triggers: pull_request_target and workflow_run run in target repo
   # context while being triggerable by forks — high RCE risk
   dangerous-triggers:
-    severity: error
+    remap:
+      severity: high
 
   # Require hash-pinned SHAs for all external actions; ref-pin for internal org actions
   unpinned-uses:
-    severity: warning
+    remap:
+      severity: medium
     config:
       policies:
-        - pattern: "actions/*"
-          policy: hash-pin
-        - pattern: "*"
-          policy: hash-pin
+        "actions/*": hash-pin
+        "*": hash-pin
 
   # Block specific actions your org wants to disallow — add to deny list as needed
   forbidden-uses:
-    severity: error
+    remap:
+      severity: high
     config:
       deny: []
 
-  # Require Dependabot cooldown of at least 7 days before auto-merging updates
-  dependabot-cooldown:
-    config:
-      days: 7
 
-  # Secrets used outside a GitHub environment bypass protection rules — error by default
+  # Secrets used outside a GitHub environment bypass protection rules — high severity by default
   # Add exceptions for secrets that legitimately can't be tied to an environment
   # secrets-outside-env:
   #   config:
