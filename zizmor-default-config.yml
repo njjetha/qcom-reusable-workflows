@@ -8,11 +8,23 @@ rules:
   # Require hash-pinned SHAs for all external actions; ref-pin for internal org actions
   unpinned-uses:
     remap:
-      severity: medium
+      severity: high
     config:
       policies:
         "actions/*": hash-pin
         "*": hash-pin
+
+  # Flag jobs/workflows that define permissions at the workflow level rather than
+  # the job level — enforces least-privilege, per-job permission scoping
+  anonymous-definition:
+    remap:
+      severity: medium
+
+  # Detect credentials or tokens that may be persisted inside workflow artifacts —
+  # artifacts are accessible to anyone with repo read access
+  artipacked:
+    remap:
+      severity: high
 
   # Block specific actions your org wants to disallow — add to deny list as needed
   forbidden-uses:

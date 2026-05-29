@@ -15,9 +15,24 @@ jobs:
   zizmor:
     runs-on: ubuntu-latest
     steps:
+      # On pull_request_target GITHUB_REF is refs/heads/<base> and GITHUB_SHA is
+      # the base-branch tip — not the PR merge commit.  Check out
+      # refs/pull/N/merge so that:
+      #   (a) zizmor scans the actual PR code, not the base branch, and
+      #   (b) upload-sarif derives SHA from `git rev-parse HEAD` (codeql-action#2807)
+      #       which will now correctly equal the merge commit SHA.
+      # refs/pull/N/merge is a GitHub-synthesised merge commit; checking it out
+      # does NOT expose untrusted fork code in a privileged context.
+      # For non-PR triggers fall back to the default checkout behaviour.
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           persist-credentials: false
+          ref: >-
+            ${{
+              github.event.pull_request.number != '' &&
+              format('refs/pull/{0}/merge', github.event.pull_request.number) ||
+              github.ref
+            }}
 
       # If no repo-local config exists, download the central default from this repo
       - name: Resolve config
@@ -37,6 +52,41 @@ jobs:
         uses: zizmorcore/zizmor-action@5f14fd08f7cf1cb1609c1e344975f152c7ee938d
         with:
           config: ${{ steps.config.outputs.path }}
-          advanced-security: true   # writes SARIF and uploads to GitHub Code Scanning
-          online-audits: true       # always run impostor-commit, known-vulnerable-actions, ref-confusion
+          advanced-security: true    # uploads SARIF; ref/sha are correct because we checked out refs/pull/N/merge above
+          online-audits: true
         continue-on-error: true
+
+      - name: Fail on high severity findings
+        if: steps.zizmor.outcome == 'success' || steps.zizmor.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -n "${{ github.event.pull_request.number }}" ]; then
+            SCAN_REF="refs/pull/${{ github.event.pull_request.number }}/merge"
+          else
+            SCAN_REF="${{ github.ref }}"
+          fi
+
+          # Query dismissed alerts across ALL refs — dismissals are recorded on whichever
+          # ref the SARIF was uploaded against (may differ from SCAN_REF on first PR run).
+          # Zizmor does not emit fingerprints so match by ruleId only.
+          DISMISSED_JSON='[]'
+          if command -v gh &>/dev/null; then
+            DISMISSED_JSON=$(gh api \
+              "/repos/${{ github.repository }}/code-scanning/alerts" \
+              --paginate \
+              2>/dev/null \
+              | jq -s 'add // [] | [.[] | select(.state=="dismissed") | .rule.id] | unique' \
+              2>/dev/null || echo '[]')
+          fi
+
+          HIGH=$(jq --argjson dismissed "$DISMISSED_JSON" '
+            [.runs[].results[] | select(.level == "error") |
+              select(.ruleId as $id | $dismissed | index($id) == null)
+            ] | length
+          ' "${{ steps.zizmor.outputs.output-file }}")
+
+          if [ "$HIGH" -gt 0 ]; then
+            echo "::error::Zizmor detected $HIGH undismissed high severity finding(s). Fix the vulnerability or raise a dismissal request for org admin approval."
+            exit 1
+          fi
