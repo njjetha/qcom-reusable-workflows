@@ -63,10 +63,7 @@ jobs:
           OPEN_HIGH=0
           if command -v gh &>/dev/null; then
             OPEN_HIGH=$(gh api \
-              "/repos/${{ github.repository }}/code-scanning/alerts" \
-              -f "ref=${SCAN_REF}" \
-              -f "tool_name=zizmor" \
-              -f "state=open" \
+              "/repos/${{ github.repository }}/code-scanning/alerts?tool_name=zizmor&state=open&ref=${SCAN_REF}&per_page=100" \
               --paginate \
               2>/dev/null \
               | jq -s 'add // [] | [.[] | select(.rule.severity == "error")] | length' \
