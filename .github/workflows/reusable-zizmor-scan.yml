@@ -39,8 +39,41 @@ jobs:
           fi
 
       - name: Run Zizmor
+        id: zizmor
         uses: zizmorcore/zizmor-action@5f14fd08f7cf1cb1609c1e344975f152c7ee938d
         with:
           config: ${{ steps.config.outputs.path }}
           advanced-security: true
           online-audits: true
+
+      - name: Fail on high severity findings
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -n "${{ github.event.pull_request.number }}" ]; then
+            SCAN_REF="refs/pull/${{ github.event.pull_request.number }}/merge"
+          else
+            SCAN_REF="${{ github.ref }}"
+          fi
+
+          # Query GHAS for open HIGH alerts from zizmor on this ref.
+          # zizmor does not set security_severity_level — use rule.severity=="error"
+          # which maps to HIGH in zizmor's config. GHAS tracks open vs dismissed
+          # per individual finding so dismissed alerts are automatically excluded.
+          OPEN_HIGH=0
+          if command -v gh &>/dev/null; then
+            OPEN_HIGH=$(gh api \
+              "/repos/${{ github.repository }}/code-scanning/alerts" \
+              -f "ref=${SCAN_REF}" \
+              -f "tool_name=zizmor" \
+              -f "state=open" \
+              --paginate \
+              2>/dev/null \
+              | jq -s 'add // [] | [.[] | select(.rule.severity == "error")] | length' \
+              2>/dev/null || echo '0')
+          fi
+
+          if [ "$OPEN_HIGH" -gt 0 ]; then
+            echo "::error::Zizmor detected $OPEN_HIGH open high severity finding(s). Fix the vulnerability or raise a dismissal request for org admin approval."
+            exit 1
+          fi
