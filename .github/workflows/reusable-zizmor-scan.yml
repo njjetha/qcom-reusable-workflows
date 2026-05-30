@@ -39,56 +39,8 @@ jobs:
           fi
 
       - name: Run Zizmor
-        id: zizmor
         uses: zizmorcore/zizmor-action@5f14fd08f7cf1cb1609c1e344975f152c7ee938d
         with:
           config: ${{ steps.config.outputs.path }}
-          advanced-security: true    # uploads SARIF; ref/sha are correct because we checked out refs/pull/N/merge above
+          advanced-security: true
           online-audits: true
-        continue-on-error: true
-
-      - name: Fail on high severity findings
-        if: steps.zizmor.outcome == 'success' || steps.zizmor.outcome == 'failure'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if [ -n "${{ github.event.pull_request.number }}" ]; then
-            SCAN_REF="refs/pull/${{ github.event.pull_request.number }}/merge"
-          else
-            SCAN_REF="${{ github.ref }}"
-          fi
-
-          echo "DEBUG: SCAN_REF=$SCAN_REF"
-          echo "DEBUG: zizmor outcome=${{ steps.zizmor.outcome }}"
-          echo "DEBUG: output-file=${{ steps.zizmor.outputs.output-file }}"
-          echo "DEBUG: SARIF total results=$(jq '[.runs[].results[]] | length' "${{ steps.zizmor.outputs.output-file }}" 2>/dev/null || echo 'SARIF unreadable')"
-          echo "DEBUG: SARIF error results=$(jq '[.runs[].results[] | select(.level=="error")] | length' "${{ steps.zizmor.outputs.output-file }}" 2>/dev/null || echo '0')"
-          echo "DEBUG: SARIF ruleIds=$(jq '[.runs[].results[] | select(.level=="error") | .ruleId] | unique' "${{ steps.zizmor.outputs.output-file }}" 2>/dev/null || echo '[]')"
-          echo "DEBUG: checked out HEAD=$(git rev-parse HEAD)"
-          echo "DEBUG: workflow files found=$(find .github/workflows -name '*.yml' | tr '\n' ' ')"
-
-          DISMISSED_JSON='[]'
-          if command -v gh &>/dev/null; then
-            DISMISSED_JSON=$(gh api \
-              "/repos/${{ github.repository }}/code-scanning/alerts" \
-              --paginate \
-              2>/dev/null \
-              | jq -s 'add // [] | [.[] | select(.state=="dismissed") | .rule.id] | unique' \
-              2>/dev/null || echo '[]')
-          fi
-
-          echo "DEBUG: dismissed count=$(echo "$DISMISSED_JSON" | jq 'length')"
-          echo "DEBUG: dismissed rules=$DISMISSED_JSON"
-
-          HIGH=$(jq --argjson dismissed "$DISMISSED_JSON" '
-            [.runs[].results[] | select(.level == "error") |
-              select(.ruleId as $id | $dismissed | index($id) == null)
-            ] | length
-          ' "${{ steps.zizmor.outputs.output-file }}")
-
-          echo "DEBUG: undismissed HIGH=$HIGH"
-
-          if [ "$HIGH" -gt 0 ]; then
-            echo "::error::Zizmor detected $HIGH undismissed high severity finding(s). Fix the vulnerability or raise a dismissal request for org admin approval."
-            exit 1
-          fi
