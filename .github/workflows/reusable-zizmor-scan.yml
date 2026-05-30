@@ -15,15 +15,6 @@ jobs:
   zizmor:
     runs-on: ubuntu-latest
     steps:
-      # On pull_request_target GITHUB_REF is refs/heads/<base> and GITHUB_SHA is
-      # the base-branch tip — not the PR merge commit.  Check out
-      # refs/pull/N/merge so that:
-      #   (a) zizmor scans the actual PR code, not the base branch, and
-      #   (b) upload-sarif derives SHA from `git rev-parse HEAD` (codeql-action#2807)
-      #       which will now correctly equal the merge commit SHA.
-      # refs/pull/N/merge is a GitHub-synthesised merge commit; checking it out
-      # does NOT expose untrusted fork code in a privileged context.
-      # For non-PR triggers fall back to the default checkout behaviour.
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           persist-credentials: false
@@ -67,13 +58,10 @@ jobs:
             SCAN_REF="${{ github.ref }}"
           fi
 
-          # Query dismissed alerts across ALL refs — dismissals are recorded on whichever
-          # ref the SARIF was uploaded against (may differ from SCAN_REF on first PR run).
-          # Zizmor does not emit fingerprints so match by ruleId only.
           DISMISSED_JSON='[]'
           if command -v gh &>/dev/null; then
             DISMISSED_JSON=$(gh api \
-              "/repos/${{ github.repository }}/code-scanning/alerts" \
+              "/repos/${{ github.repository }}/code-scanning/alerts?ref=${SCAN_REF}" \
               --paginate \
               2>/dev/null \
               | jq -s 'add // [] | [.[] | select(.state=="dismissed") | .rule.id] | unique' \
