@@ -1,11 +1,7 @@
 name: Zizmor Security Scan
 on:
-  workflow_call:
-    inputs:
-      config-path:
-        required: false
-        type: string
-        default: ".github/zizmor.yml"
+  pull_request:
+  push:
 
 permissions:
   contents: read

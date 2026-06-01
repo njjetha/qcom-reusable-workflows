@@ -111,13 +111,3 @@ jobs:
       armor-checker-options: ${{ inputs.armor-checker-options }}
     permissions:
       contents: read
-
-  zizmor-scan:
-    if: ${{ inputs.enable-zizmor-scan }}
-    name: Zizmor Security Scan
-    uses: ./.github/workflows/reusable-zizmor-scan.yml
-    with:
-      config-path: ${{ inputs.zizmor-config-path }}
-    permissions:
-      contents: read
-      security-events: write
